@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprint Planner · Jira Integration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- ============================================================
+       STYLES
+       Paleta: fundo escuro azul-acinzentado, acentos azul elétrico,
+       verde (ok), âmbar (alerta), vermelho (excedido).
+  ============================================================ -->
+  <style>
+    /* ── Reset & Variables ────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d1117;
+      --surface:    #161b22;
+      --surface2:   #21262d;
+      --surface3:   #30363d;
+      --border:     #30363d;
+      --border2:    #3d444d;
+
+      --text:       #e6edf3;
+      --text-muted: #7d8590;
+      --text-dim:   #484f58;
+
+      --accent:     #2f81f7;
+      --accent-glow:#1f6feb40;
+      --ok:         #3fb950;
+      --ok-bg:      #1a3a21;
+      --warn:       #d29922;
+      --warn-bg:    #3b2a00;
+      --danger:     #f85149;
+      --danger-bg:  #3c1111;
+
+      --card-bg:    #1c2128;
+      --card-border:#2d333b;
+      --card-hover: #262c36;
+
+      --radius:     10px;
+      --radius-sm:  6px;
+      --shadow:     0 4px 16px #00000060;
+      --shadow-card:0 2px 8px #00000040;
+
+      --font: 'DM Sans', sans-serif;
+      --mono: 'DM Mono', monospace;
+    }
+
+    html { font-family: var(--font); background: var(--bg); color: var(--text); }
+    body  { min-height: 100vh; overflow-x: hidden; }
+
+    /* ── Scrollbars ───────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 15px; letter-spacing: -.3px;
+    }
+    .logo-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: linear-gradient(135deg, #2f81f7 0%, #1d4ed8 100%);
+      display: grid; place-items: center; font-size: 13px;
+    }
+    .logo span { color: var(--text-muted); font-weight: 400; }
+
+    .header-center { flex: 1; display: flex; align-items: center; gap: 12px; }
+
+    /* Team selector */
+    .team-selector-wrap { display: flex; align-items: center; gap: 10px; }
+    .team-selector-wrap label { font-size: 13px; color: var(--text-muted); }
+    select#teamSelect {
+      appearance: none;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--font); font-size: 13px; font-weight: 500;
+      padding: 6px 32px 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237d8590' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      outline: none;
+      transition: border-color .15s;
+    }
+    select#teamSelect:focus { border-color: var(--accent); }
+
+    .sprint-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); padding: 5px 10px;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .sprint-badge strong { color: var(--text); }
+
+    .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: var(--radius-sm);
+      font-family: var(--font); font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid transparent;
+      transition: all .15s; white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: #388bfd; }
+    .btn-secondary {
+      background: var(--surface2); color: var(--text);
+      border-color: var(--border2);
+    }
+    .btn-secondary:hover { background: var(--surface3); }
+    .btn-ghost {
+      background: transparent; color: var(--text-muted);
+      border-color: transparent;
+    }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ── Main layout ──────────────────────────────────────────── */
+    main { padding: 24px 28px; }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex; align-items: center; gap: 20px;
+      margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .stat-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 99px; padding: 6px 14px;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .stat-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .stat-pill strong { color: var(--text); font-size: 13px; }
+
+    /* Board */
+    #board {
+      display: flex; gap: 14px;
+      overflow-x: auto; padding-bottom: 16px;
+      align-items: flex-start;
+    }
+
+    /* ── Column ───────────────────────────────────────────────── */
+    .column {
+      min-width: 240px; max-width: 260px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
+      transition: border-color .2s;
+    }
+    .column.drag-over {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .col-header {
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .col-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .col-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .col-name { font-size: 13px; font-weight: 600; flex: 1; }
+    .col-count {
+      font-size: 11px; color: var(--text-muted);
+      background: var(--surface2); border-radius: 99px;
+      padding: 1px 7px; font-family: var(--mono);
+    }
+
+    /* Capacity bar */
+    .cap-row { display: flex; align-items: center; gap: 8px; }
+    .cap-label { font-size: 11px; color: var(--text-muted); font-family: var(--mono); min-width: 48px; }
+    .cap-label.warn { color: var(--warn); }
+    .cap-label.danger { color: var(--danger); }
+
+    .cap-bar-wrap { flex: 1; height: 5px; background: var(--surface3); border-radius: 99px; overflow: hidden; }
+    .cap-bar {
+      height: 100%; border-radius: 99px;
+      background: var(--ok);
+      transition: width .3s ease, background .3s;
+    }
+    .cap-bar.warn   { background: var(--warn); }
+    .cap-bar.danger { background: var(--danger); }
+
+    /* Edit capacity btn */
+    .edit-cap-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-dim); padding: 2px 4px;
+      border-radius: 4px; line-height: 1;
+      transition: color .15s;
+    }
+    .edit-cap-btn:hover { color: var(--text-muted); }
+    .edit-cap-btn svg { width: 12px; height: 12px; display: block; }
+
+    /* Cards list */
+    .col-cards {
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+      min-height: 80px;
+    }
+
+    /* ── Card ─────────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      cursor: grab;
+      user-select: none;
+      transition: background .15s, box-shadow .15s, transform .15s;
+      position: relative;
+    }
+    .card:hover { background: var(--card-hover); box-shadow: var(--shadow-card); }
+    .card:active { cursor: grabbing; }
+    .card.dragging {
+      opacity: .4; transform: scale(.97);
+    }
+    .card.drag-placeholder {
+      border: 2px dashed var(--accent);
+      background: var(--accent-glow);
+      min-height: 52px;
+    }
+
+    .card-top { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+    .card-key {
+      font-family: var(--mono); font-size: 10px;
+      color: var(--text-dim); margin-bottom: 3px;
+    }
+    .card-title { font-size: 12px; font-weight: 500; line-height: 1.4; flex: 1; }
+    .card-pts {
+      flex-shrink: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: var(--mono); font-size: 11px; font-weight: 500;
+      color: var(--text-muted);
+      padding: 2px 6px;
+    }
+    .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .card-type {
+      font-size: 10px; padding: 1px 6px;
+      border-radius: 3px; font-weight: 500;
+    }
+    .card-type.story    { background: #1a3a4a; color: #58a6ff; }
+    .card-type.bug      { background: #3c1111; color: #f85149; }
+    .card-type.task     { background: #1a2a1a; color: #3fb950; }
+    .card-type.subtask  { background: #2a2a1a; color: #d29922; }
+
+    .card-prio {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    }
+    .card-prio.high   { background: #f85149; }
+    .card-prio.medium { background: #d29922; }
+    .card-prio.low    { background: #3fb950; }
+
+    /* ── Toast notification ───────────────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 8px;
+      z-index: 999;
+    }
+    .toast {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); padding: 10px 16px;
+      font-size: 13px; color: var(--text);
+      box-shadow: var(--shadow);
+      animation: slideIn .2s ease;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.warn  { border-color: var(--warn);   }
+    .toast.error { border-color: var(--danger);  }
+    .toast.ok    { border-color: var(--ok);      }
+    @keyframes slideIn {
+      from { transform: translateX(20px); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+
+    /* ── Modal (edit capacity) ────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: #00000080; backdrop-filter: blur(4px);
+      display: none; place-items: center; z-index: 200;
+    }
+    .modal-overlay.open { display: grid; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 24px; min-width: 320px;
+      box-shadow: var(--shadow);
+    }
+    .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    .modal label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px; }
+    .modal input[type=number] {
+      width: 100%;
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--text); font-family: var(--font); font-size: 14px;
+      padding: 8px 12px; border-radius: var(--radius-sm);
+      outline: none; transition: border-color .15s;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+    /* ── Empty state ──────────────────────────────────────────── */
+    .empty-col {
+      text-align: center; padding: 24px 12px;
+      color: var(--text-dim); font-size: 12px;
+    }
+
+    /* ── Loading ──────────────────────────────────────────────── */
+    #loading {
+      text-align: center; padding: 80px 20px;
+      color: var(--text-muted); font-size: 14px;
+      display: none;
+    }
+    .spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      header { flex-wrap: wrap; gap: 10px; }
+      main { padding: 16px; }
+      .header-center { order: 3; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER
+============================================================ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    Sprint<span>Planner</span>
+  </div>
+
+  <div class="header-center">
+    <!-- Team selector -->
+    <div class="team-selector-wrap">
+      <label for="teamSelect">Equipe:</label>
+      <select id="teamSelect">
+        <option value="">— selecione —</option>
+      </select>
+    </div>
+
+    <div class="sprint-badge" id="sprintBadge" style="display:none">
+      Sprint <strong id="sprintName">—</strong>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn btn-ghost" id="btnReset" style="display:none" title="Resetar distribuição">
+      <!-- ícone reset -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      Resetar
+    </button>
+    <button class="btn btn-primary" id="btnAuto" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+      Distribuir automaticamente
+    </button>
+  </div>
+</header>
+
+<!-- ============================================================
+     MAIN
+============================================================ -->
+<main>
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat-pill">
+      <div class="dot" style="background:var(--text-muted)"></div>
+      Total de cards: <strong id="statTotal">0</strong>
+    </div>
+    <div class="stat-pill">
+      <div class="dot" style="background:var(--warn)"></div>
+      Não atribuídos: <strong id="statUnassigned">0</strong>
+    </div>
+    <div class="stat-pill">
+      <div class="dot" style="background:var(--ok)"></div>
+      Atribuídos: <strong id="statAssigned">0</strong>
+    </div>
+    <div class="stat-pill">
+      <div class="dot" style="background:var(--accent)"></div>
+      Capacidade total: <strong id="statCap">0</strong> pts
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading"><div class="spinner"></div>Carregando equipe…</div>
+
+  <!-- Board -->
+  <div id="board"></div>
+</main>
+
+<!-- ============================================================
+     TOAST container
+============================================================ -->
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     MODAL – edit capacity
+============================================================ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Editar capacidade</h3>
+    <label>Capacidade total (story points)</label>
+    <input type="number" id="modalCapInput" min="1" max="999" />
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btnModalCancel">Cancelar</button>
+      <button class="btn btn-primary"   id="btnModalSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================ -->
+<script>
+/* ============================================================
+   1. MOCK DATA
+   Simula as respostas que viriam da API do Jira.
+============================================================ */
+
+const TEAMS_DATA = {
+  frontend: {
+    name: "Frontend",
+    sprint: "Sprint 42 · Mai/2026",
+    users: [
+      { id: "u1", name: "Ana Silva",    avatar: "AS", color: "#7c3aed", capacity: 13, used: 0 },
+      { id: "u2", name: "Bruno Costa",  avatar: "BC", color: "#0891b2", capacity: 10, used: 0 },
+      { id: "u3", name: "Carla Matos",  avatar: "CM", color: "#d97706", capacity: 8,  used: 0 },
+      { id: "u4", name: "Diego Rocha",  avatar: "DR", color: "#059669", capacity: 11, used: 0 },
+    ],
+    issues: [
+      { id: "FE-101", title: "Implementar login com SSO",           type: "story",   prio: "high",   pts: 5, assignee: "u1" },
+      { id: "FE-102", title: "Criar componente de modal reutilizável", type: "task",  prio: "medium", pts: 3, assignee: "u1" },
+      { id: "FE-103", title: "Bug: formulário não valida e-mail",   type: "bug",     prio: "high",   pts: 2, assignee: "u2" },
+      { id: "FE-104", title: "Adicionar dark mode ao dashboard",    type: "story",   prio: "medium", pts: 5, assignee: "u2" },
+      { id: "FE-105", title: "Refatorar componente de tabela",      type: "task",    prio: "low",    pts: 3, assignee: null },
+      { id: "FE-106", title: "Testes unitários – módulo de auth",   type: "task",    prio: "medium", pts: 3, assignee: null },
+      { id: "FE-107", title: "Integrar Storybook ao CI/CD",         type: "story",   prio: "low",    pts: 5, assignee: null },
+      { id: "FE-108", title: "Bug: botão desaparece no mobile",     type: "bug",     prio: "high",   pts: 1, assignee: null },
+      { id: "FE-109", title: "Criar página de onboarding",          type: "story",   prio: "medium", pts: 8, assignee: null },
+      { id: "FE-110", title: "Otimizar bundle size",                type: "task",    prio: "low",    pts: 3, assignee: null },
+      { id: "FE-111", title: "Acessibilidade: ajustar contraste",   type: "subtask", prio: "medium", pts: 2, assignee: null },
+    ],
+  },
+};
+
+/* ============================================================
+   2. ESTADO DA APLICAÇÃO
+============================================================ */
+let state = {
+  teamId:   null,    // id da equipe selecionada
+  users:    [],      // array de usuários (cópia mutável)
+  issues:   [],      // array de issues (cópia mutável)
+  originalIssues: [], // snapshot para reset
+};
+
+// Controle de drag
+let draggingCardId  = null;
+let draggingFromCol = null; // "unassigned" | userId
+let placeholder     = null;
+
+// Controle do modal
+let editingUserId = null;
+
+/* ============================================================
+   3. UTILITÁRIOS
+============================================================ */
+
+/** Clona profundamente um objeto */
+const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+/** Toast de notificação */
+function showToast(msg, type = "info") {
+  const icons = { ok: "✅", warn: "⚠️", error: "🚫", info: "ℹ️" };
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = `${icons[type] ?? ""} ${msg}`;
+  document.getElementById("toast-container").appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+/** Retorna capacidade disponível do usuário */
+function availableCap(user) { return user.capacity - user.used; }
+
+/** Calcula status da capacidade */
+function capStatus(user) {
+  const pct = user.used / user.capacity;
+  if (pct >= 1)   return "danger";
+  if (pct >= 0.8) return "warn";
+  return "ok";
+}
+
+/* ============================================================
+   4. INICIALIZAÇÃO – preenche o select de equipes
+============================================================ */
+function initTeamSelect() {
+  const sel = document.getElementById("teamSelect");
+  Object.entries(teams).forEach(([id, teamItem]) => {
+    if (teamItem.team.filterJiraId > 0){
+      const opt = document.createElement("option");
+      opt.value = teamItem.team.filterJiraId;
+      opt.textContent = teamItem.team.team;
+      sel.appendChild(opt);
+    }
+  });
+
+  sel.addEventListener("change", () => {
+    const id = sel.value;
+    if (!id) return;
+    loadTeam(id);
+  });
+}
+
+/* ============================================================
+   5. CARREGAR EQUIPE
+============================================================ */
+ function loadTeam(teamId) {
+  // Simula latência de API
+  document.getElementById("loading").style.display = "block";
+  document.getElementById("board").innerHTML = "";
+  document.getElementById("statsBar").style.display  = "none";
+  document.getElementById("btnAuto").style.display   = "none";
+  document.getElementById("btnReset").style.display  = "none";
+  document.getElementById("sprintBadge").style.display = "none";
+
+  setTimeout(() => {
+
+    const raw = TEAMS_DATA[teamId];
+    state.teamId = teamId;
+    state.users  = deepClone(raw.users);
+    state.issues = deepClone(raw.issues);
+    state.originalIssues = deepClone(raw.issues);
+
+    // Aplica capacidade usada pelos cards já atribuídos
+    state.users.forEach(u => u.used = 0);
+    state.issues.forEach(issue => {
+      if (issue.assignee) {
+        const u = state.users.find(u => u.id === issue.assignee);
+        if (u) u.used += issue.pts;
+      }
+    });
+
+    // Sprint badge
+    document.getElementById("sprintName").textContent = raw.sprint;
+    document.getElementById("sprintBadge").style.display = "flex";
+
+    document.getElementById("loading").style.display  = "none";
+    document.getElementById("statsBar").style.display = "flex";
+    document.getElementById("btnAuto").style.display  = "inline-flex";
+    document.getElementById("btnReset").style.display = "inline-flex";
+
+    renderBoard();
+    renderStats();
+  }, 400);
+}
+
+/* ============================================================
+   6. RENDERIZAR BOARD
+============================================================ */
+function renderBoard() {
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+
+  // Coluna: Não atribuídos
+  const unassigned = state.issues.filter(i => !i.assignee);
+  board.appendChild(buildColumn("unassigned", "Não atribuídos", null, unassigned));
+
+  // Colunas por usuário
+  state.users.forEach(user => {
+    const cards = state.issues.filter(i => i.assignee === user.id);
+    board.appendChild(buildColumn(user.id, user.name, user, cards));
+  });
+}
+
+/* ============================================================
+   7. CONSTRUIR COLUNA
+   colId: "unassigned" | userId
+============================================================ */
+function buildColumn(colId, name, user, cards) {
+  const col = document.createElement("div");
+  col.className = "column";
+  col.dataset.colId = colId;
+
+  /* --- Cabeçalho --- */
+  const header = document.createElement("div");
+  header.className = "col-header";
+
+  // Topo: avatar + nome + contagem
+  const top = document.createElement("div");
+  top.className = "col-top";
+
+  if (user) {
+    // Avatar colorido
+    const av = document.createElement("div");
+    av.className = "col-avatar";
+    av.style.background = user.color + "30";
+    av.style.color = user.color;
+    av.textContent = user.avatar;
+    top.appendChild(av);
+  } else {
+    // Ícone genérico para "Não atribuídos"
+    const av = document.createElement("div");
+    av.className = "col-avatar";
+    av.style.background = "var(--surface3)";
+    av.style.color = "var(--text-muted)";
+    av.textContent = "—";
+    top.appendChild(av);
+  }
+
+  const nameEl = document.createElement("div");
+  nameEl.className = "col-name";
+  nameEl.textContent = name;
+  top.appendChild(nameEl);
+
+  const countEl = document.createElement("div");
+  countEl.className = "col-count";
+  countEl.textContent = cards.length;
+  top.appendChild(countEl);
+
+  header.appendChild(top);
+
+  // Barra de capacidade (apenas para usuários)
+  if (user) {
+    const capRow = document.createElement("div");
+    capRow.className = "cap-row";
+
+    const status = capStatus(user);
+    const pct = Math.min(user.used / user.capacity, 1) * 100;
+
+    const label = document.createElement("div");
+    label.className = `cap-label ${status !== "ok" ? status : ""}`;
+    label.textContent = `${user.used}/${user.capacity}`;
+    capRow.appendChild(label);
+
+    const barWrap = document.createElement("div");
+    barWrap.className = "cap-bar-wrap";
+    const bar = document.createElement("div");
+    bar.className = `cap-bar ${status !== "ok" ? status : ""}`;
+    bar.style.width = pct + "%";
+    barWrap.appendChild(bar);
+    capRow.appendChild(barWrap);
+
+    // Botão editar capacidade
+    const editBtn = document.createElement("button");
+    editBtn.className = "edit-cap-btn";
+    editBtn.title = "Editar capacidade";
+    editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    editBtn.addEventListener("click", () => openEditCapModal(user.id));
+    capRow.appendChild(editBtn);
+
+    header.appendChild(capRow);
+  }
+
+  col.appendChild(header);
+
+  /* --- Lista de cards --- */
+  const cardList = document.createElement("div");
+  cardList.className = "col-cards";
+
+  if (cards.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-col";
+    empty.textContent = colId === "unassigned"
+      ? "Todos os cards foram distribuídos 🎉"
+      : "Sem cards atribuídos";
+    cardList.appendChild(empty);
+  } else {
+    cards.forEach(card => cardList.appendChild(buildCard(card)));
+  }
+
+  col.appendChild(cardList);
+
+  /* --- Drag & Drop na coluna --- */
+  col.addEventListener("dragover", onDragOver);
+  col.addEventListener("dragleave", onDragLeave);
+  col.addEventListener("drop", (e) => onDrop(e, colId));
+
+  return col;
+}
+
+/* ============================================================
+   8. CONSTRUIR CARD
+============================================================ */
+function buildCard(issue) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.draggable = true;
+  card.dataset.issueId = issue.id;
+
+  card.innerHTML = `
+    <div class="card-key">${issue.id}</div>
+    <div class="card-top">
+      <div class="card-title">${issue.title}</div>
+      <div class="card-pts">${issue.pts}</div>
+    </div>
+    <div class="card-meta">
+      <span class="card-type ${issue.type}">${issue.type}</span>
+      <span class="card-prio ${issue.prio}" title="Prioridade: ${issue.prio}"></span>
+    </div>
+  `;
+
+  card.addEventListener("dragstart", (e) => onDragStart(e, issue.id));
+  card.addEventListener("dragend", onDragEnd);
+
+  return card;
+}
+
+/* ============================================================
+   9. DRAG & DROP
+============================================================ */
+
+function onDragStart(e, issueId) {
+  draggingCardId = issueId;
+  const issue = state.issues.find(i => i.id === issueId);
+  draggingFromCol = issue.assignee ?? "unassigned";
+
+  // Marcar card como arrastado
+  setTimeout(() => {
+    const el = document.querySelector(`[data-issue-id="${issueId}"]`);
+    if (el) el.classList.add("dragging");
+  }, 0);
+
+  e.dataTransfer.effectAllowed = "move";
+}
+
+function onDragEnd() {
+  // Limpar
+  document.querySelectorAll(".card.dragging").forEach(c => c.classList.remove("dragging"));
+  document.querySelectorAll(".column.drag-over").forEach(c => c.classList.remove("drag-over"));
+  if (placeholder) { placeholder.remove(); placeholder = null; }
+  draggingCardId  = null;
+  draggingFromCol = null;
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+
+  const col = e.currentTarget;
+  col.classList.add("drag-over");
+
+  // Placeholder dentro da lista
+  const cardList = col.querySelector(".col-cards");
+  if (!placeholder) {
+    placeholder = document.createElement("div");
+    placeholder.className = "card drag-placeholder";
+  }
+  // Calcula posição de inserção
+  const afterEl = getDragAfterElement(cardList, e.clientY);
+  if (afterEl == null) {
+    cardList.appendChild(placeholder);
+  } else {
+    cardList.insertBefore(placeholder, afterEl);
+  }
+}
+
+function onDragLeave(e) {
+  // Só remove se saiu realmente da coluna
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove("drag-over");
+    if (placeholder) { placeholder.remove(); placeholder = null; }
+  }
+}
+
+function onDrop(e, targetColId) {
+  e.preventDefault();
+  if (!draggingCardId) return;
+
+  const issue   = state.issues.find(i => i.id === draggingCardId);
+  const fromCol = draggingFromCol;
+
+  // Sem mudança de coluna
+  if (fromCol === targetColId) {
+    renderBoard(); renderStats(); return;
+  }
+
+  // Verifica capacidade do destino (se for usuário)
+  if (targetColId !== "unassigned") {
+    const targetUser = state.users.find(u => u.id === targetColId);
+    if (targetUser.used + issue.pts > targetUser.capacity) {
+      showToast(`${targetUser.name} não tem capacidade para este card (${issue.pts} pts)`, "error");
+      renderBoard(); renderStats(); return;
+    }
+  }
+
+  // Atualiza assignee
+  const oldAssignee = issue.assignee;
+  issue.assignee = targetColId === "unassigned" ? null : targetColId;
+
+  // Atualiza capacidade usada
+  if (oldAssignee) {
+    const from = state.users.find(u => u.id === oldAssignee);
+    if (from) from.used -= issue.pts;
+  }
+  if (issue.assignee) {
+    const to = state.users.find(u => u.id === issue.assignee);
+    if (to) {
+      to.used += issue.pts;
+      // Aviso se próximo do limite
+      if (capStatus(to) === "warn") showToast(`${to.name} está próximo da capacidade máxima`, "warn");
+    }
+  }
+
+  renderBoard();
+  renderStats();
+}
+
+/** Elemento após o qual inserir (para placeholder) */
+function getDragAfterElement(container, y) {
+  const draggables = [...container.querySelectorAll(".card:not(.dragging):not(.drag-placeholder)")];
+  return draggables.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset, element: child };
+    }
+    return closest;
+  }, { offset: Number.NEGATIVE_INFINITY }).element ?? null;
+}
+
+/* ============================================================
+   10. DISTRIBUIÇÃO AUTOMÁTICA
+   Distribui cards sem responsável de forma aleatória,
+   respeitando a capacidade de cada usuário.
+============================================================ */
+function autoDistribute() {
+  const unassigned = state.issues.filter(i => !i.assignee);
+  if (unassigned.length === 0) {
+    showToast("Não há cards para distribuir!", "info");
+    return;
+  }
+
+  // Embaralha os cards para aleatoriedade
+  shuffle(unassigned);
+
+  let distributed = 0;
+  unassigned.forEach(issue => {
+    // Filtra usuários com capacidade suficiente
+    const eligible = state.users.filter(u => availableCap(u) >= issue.pts);
+    if (eligible.length === 0) return; // pula se ninguém tem capacidade
+
+    // Escolhe o usuário com mais capacidade disponível (+ fator aleatório)
+    // Para tornar mais justo, ordena por capacidade disponível e pega um dos top
+    eligible.sort((a, b) => availableCap(b) - availableCap(a));
+    // Pega entre os top-2 aleatoriamente (quando disponível)
+    const pool = eligible.slice(0, Math.min(2, eligible.length));
+    const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+    issue.assignee = chosen.id;
+    chosen.used += issue.pts;
+    distributed++;
+  });
+
+  renderBoard();
+  renderStats();
+
+  if (distributed === 0) {
+    showToast("Nenhum card pôde ser distribuído: capacidade insuficiente", "warn");
+  } else {
+    showToast(`${distributed} card(s) distribuídos com sucesso`, "ok");
+  }
+}
+
+/** Fisher-Yates shuffle */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+/* ============================================================
+   11. RESET
+============================================================ */
+function resetDistribution() {
+  // Restaura snapshot original
+  state.issues = deepClone(state.originalIssues);
+
+  // Recalcula capacidade usada
+  state.users.forEach(u => u.used = 0);
+  state.issues.forEach(issue => {
+    if (issue.assignee) {
+      const u = state.users.find(u => u.id === issue.assignee);
+      if (u) u.used += issue.pts;
+    }
+  });
+
+  renderBoard();
+  renderStats();
+  showToast("Distribuição resetada", "info");
+}
+
+/* ============================================================
+   12. ESTATÍSTICAS
+============================================================ */
+function renderStats() {
+  const total      = state.issues.length;
+  const unassigned = state.issues.filter(i => !i.assignee).length;
+  const assigned   = total - unassigned;
+  const totalCap   = state.users.reduce((s, u) => s + u.capacity, 0);
+
+  document.getElementById("statTotal").textContent      = total;
+  document.getElementById("statUnassigned").textContent = unassigned;
+  document.getElementById("statAssigned").textContent   = assigned;
+  document.getElementById("statCap").textContent        = totalCap;
+}
+
+/* ============================================================
+   13. MODAL – editar capacidade
+============================================================ */
+function openEditCapModal(userId) {
+  editingUserId = userId;
+  const user = state.users.find(u => u.id === userId);
+  document.getElementById("modalCapInput").value = user.capacity;
+  document.getElementById("modalOverlay").classList.add("open");
+  document.getElementById("modalCapInput").focus();
+}
+
+function closeModal() {
+  document.getElementById("modalOverlay").classList.remove("open");
+  editingUserId = null;
+}
+
+function saveCapacity() {
+  const val = parseInt(document.getElementById("modalCapInput").value, 10);
+  if (isNaN(val) || val < 1) { showToast("Valor inválido", "error"); return; }
+
+  const user = state.users.find(u => u.id === editingUserId);
+  user.capacity = val;
+
+  closeModal();
+  renderBoard();
+  renderStats();
+  showToast(`Capacidade de ${user.name} atualizada para ${val} pts`, "ok");
+}
+
+/* ============================================================
+   14. EVENT LISTENERS
+============================================================ */
+document.getElementById("btnAuto").addEventListener("click", autoDistribute);
+document.getElementById("btnReset").addEventListener("click", resetDistribution);
+document.getElementById("btnModalCancel").addEventListener("click", closeModal);
+document.getElementById("btnModalSave").addEventListener("click", saveCapacity);
+
+// Fechar modal clicando no overlay
+document.getElementById("modalOverlay").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("modalOverlay")) closeModal();
+});
+
+// Enter no input do modal
+document.getElementById("modalCapInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") saveCapacity();
+  if (e.key === "Escape") closeModal();
+});
+
+/* ============================================================
+   15. INICIALIZAR
+============================================================ */
+
+const API_TEAM_ROUTE = 'https://default886666a6a8d24604a00295b622cb7e.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2e3f573bb68d4304bef63f2dc121c8b5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=CkUHhoDskCLfWcDRdMzGJzQc3425ztg27HqX0MBa4og'
+let teams = [];
+
+async function loadTeamFromAPI(){
+    try{
+      const response = await fetch(API_TEAM_ROUTE);
+
+      if (!response.ok) {
+        throw new Error('Erro na requisição');
+      }
+
+      const dados = await response.json();      
+      teams = dados.teams.map((team, filterJiraId) => (  
+      {
+        team, filterJiraId
+      }));
+
+    } catch (errorEx){
+      console.error(errorEx);
+    }
+}
+
+async function init() {
+  await loadTeamFromAPI();
+  initTeamSelect();
+}
+
+init();
+
+</script>
+</body>
+</html>
